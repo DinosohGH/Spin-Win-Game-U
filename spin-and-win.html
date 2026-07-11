@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin &amp; Win</title>
+<style>
+  :root{
+    --gold:#ffd166;
+    --bg1:#1a1a2e;
+    --bg2:#16213e;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:radial-gradient(circle at 50% 20%, #2d2d55 0%, var(--bg1) 55%, #0d0d1a 100%);
+    color:#fff;
+    overflow:hidden;
+  }
+  .stage{
+    position:relative;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  h1{
+    margin:0 0 4px 0;
+    font-size:clamp(28px,5vw,42px);
+    letter-spacing:2px;
+    text-align:center;
+    background:linear-gradient(90deg,#ffd166,#ff6b6b,#4ecdc4,#ffd166);
+    background-size:300% auto;
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    animation:shine 5s linear infinite;
+  }
+  @keyframes shine{
+    to{background-position:300% center;}
+  }
+  .subtitle{
+    margin:0 0 20px 0;
+    opacity:.75;
+    font-size:14px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .wheel-wrap{
+    position:relative;
+    width:min(70vw,420px);
+    height:min(70vw,420px);
+    margin-bottom:26px;
+  }
+  .pointer{
+    position:absolute;
+    top:-14px;
+    left:50%;
+    transform:translateX(-50%);
+    width:0;height:0;
+    border-left:18px solid transparent;
+    border-right:18px solid transparent;
+    border-top:32px solid var(--gold);
+    filter:drop-shadow(0 3px 4px rgba(0,0,0,.5));
+    z-index:5;
+  }
+  .rim{
+    position:absolute;
+    inset:-10px;
+    border-radius:50%;
+    background:conic-gradient(from 0deg,#ffd166,#ff9a00,#ffd166,#ff9a00,#ffd166);
+    box-shadow:0 0 40px rgba(255,209,102,.35), inset 0 0 15px rgba(0,0,0,.4);
+    padding:10px;
+  }
+  canvas#wheel{
+    display:block;
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    background:#111;
+    box-shadow:0 10px 30px rgba(0,0,0,.6), inset 0 0 0 6px #0d0d1a;
+    transition:transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  }
+  .hub{
+    position:absolute;
+    top:50%;left:50%;
+    width:18%;
+    height:18%;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle at 35% 30%, #fff6d8, var(--gold) 60%, #b8860b 100%);
+    border-radius:50%;
+    box-shadow:0 4px 10px rgba(0,0,0,.5), inset 0 0 6px rgba(0,0,0,.3);
+    z-index:4;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+  }
+  #spinBtn{
+    position:relative;
+    padding:14px 46px;
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:#1a1a2e;
+    background:linear-gradient(145deg,#ffe29a,var(--gold));
+    border:none;
+    border-radius:40px;
+    cursor:pointer;
+    box-shadow:0 6px 0 #b8860b, 0 10px 20px rgba(0,0,0,.4);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  #spinBtn:active{
+    transform:translateY(4px);
+    box-shadow:0 2px 0 #b8860b, 0 4px 10px rgba(0,0,0,.4);
+  }
+  #spinBtn:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+    transform:none;
+    box-shadow:0 6px 0 #7a6320, 0 10px 20px rgba(0,0,0,.3);
+  }
+  .spins-left{
+    margin-top:14px;
+    font-size:13px;
+    opacity:.7;
+    letter-spacing:1px;
+  }
+
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.72);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .3s ease;
+    z-index:50;
+  }
+  .overlay.show{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .modal{
+    background:linear-gradient(160deg,#20203c,#141428);
+    border:2px solid var(--gold);
+    border-radius:20px;
+    padding:36px 40px;
+    text-align:center;
+    max-width:340px;
+    width:88%;
+    transform:scale(.7);
+    transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+  }
+  .overlay.show .modal{
+    transform:scale(1);
+  }
+  .modal .emoji{
+    font-size:60px;
+    display:block;
+    margin-bottom:10px;
+  }
+  .modal h2{
+    margin:0 0 8px 0;
+    font-size:24px;
+    color:var(--gold);
+  }
+  .modal p{
+    margin:0 0 22px 0;
+    opacity:.85;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .modal button{
+    padding:10px 28px;
+    border-radius:30px;
+    border:none;
+    font-weight:700;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    background:var(--gold);
+    color:#1a1a2e;
+    cursor:pointer;
+    font-size:14px;
+  }
+  .modal.lose h2{ color:#9fb3c8; }
+  .modal.lose{ border-color:#5a6b7d; }
+
+  .form-group{
+    text-align:left;
+    margin-bottom:14px;
+  }
+  .form-group label{
+    display:block;
+    font-size:12px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    opacity:.7;
+    margin-bottom:6px;
+  }
+  .form-group input{
+    width:100%;
+    padding:11px 14px;
+    border-radius:10px;
+    border:1px solid #444466;
+    background:#0f0f22;
+    color:#fff;
+    font-size:15px;
+    outline:none;
+  }
+  .form-group input:focus{
+    border-color:var(--gold);
+  }
+  .form-error{
+    color:#ff6b6b;
+    font-size:12px;
+    min-height:16px;
+    margin:-6px 0 12px 0;
+    text-align:left;
+  }
+  #regOverlay .modal{
+    max-width:360px;
+  }
+  #regOverlay .modal button{
+    width:100%;
+  }
+
+  canvas#confetti{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:60;
+  }
+
+  footer{
+    position:absolute;
+    bottom:10px;
+    font-size:11px;
+    opacity:.4;
+    letter-spacing:1px;
+  }
+  #exportLink{
+    color:inherit;
+    opacity:.55;
+    text-decoration:underline;
+    cursor:pointer;
+    margin-left:10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <h1>Spin &amp; Win</h1>
+  <p class="subtitle" id="subtitle">Give the wheel a spin — good luck!</p>
+
+  <div class="wheel-wrap">
+    <div class="pointer"></div>
+    <div class="rim">
+      <canvas id="wheel" width="600" height="600"></canvas>
+    </div>
+    <div class="hub">★</div>
+  </div>
+
+  <button id="spinBtn">Spin the Wheel</button>
+  <div class="spins-left" id="spinsLeft"></div>
+
+  <footer>Ice Breaker Game · Spin &amp; Win<span id="exportLink">Export entries (CSV)</span></footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <span class="emoji" id="resultEmoji">🎉</span>
+    <h2 id="resultTitle">Congratulations!</h2>
+    <p id="resultText">You won something great.</p>
+    <button id="closeModal">Awesome!</button>
+  </div>
+</div>
+
+<div class="overlay show" id="regOverlay">
+  <div class="modal" id="regModal">
+    <span class="emoji">🎡</span>
+    <h2>Enter to Play</h2>
+    <p>Pop in your details and give the wheel a spin!</p>
+    <form id="regForm" novalidate>
+      <div class="form-group">
+        <label for="playerName">Name</label>
+        <input type="text" id="playerName" autocomplete="name" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label for="playerPhone">Phone Number</label>
+        <input type="tel" id="playerPhone" autocomplete="tel" placeholder="e.g. 012-345 6789">
+      </div>
+      <div class="form-error" id="regError"></div>
+      <button type="submit">Let's Play</button>
+    </form>
+  </div>
+</div>
+
+<canvas id="confetti"></canvas>
+
+<script>
+(function(){
+  // ---- Configuration: 6 segments (5 prizes + Try Again) ----
+  const wheelSegments = [
+    { label: "MacBook",   emoji: "💻", color: "#4ecdc4", win: true,  title: "Jackpot!",    text: "You won a brand-new MacBook! 💻" },
+    { label: "iPhone",    emoji: "📱", color: "#ff6b6b", win: true,  title: "Amazing!",    text: "You won a brand-new iPhone! 📱" },
+    { label: "Cash",      emoji: "💵", color: "#ffd166", win: true,  title: "Cha-ching!",  text: "You won a Cash Prize! 💵" },
+    { label: "Car",       emoji: "🚗", color: "#a78bfa", win: true,  title: "Incredible!", text: "You won a Brand-New Car! 🚗" },
+    { label: "House",     emoji: "🏠", color: "#06d6a0", win: true,  title: "Unbelievable!", text: "You won a House! 🏠" },
+    { label: "Try Again", emoji: "🔄", color: "#3a3a5c", win: false, title: "So Close!",   text: "No prize this time — try again later!" },
+  ];
+
+  const N = wheelSegments.length;
+  const sliceAngle = 360 / N; // 60deg each
+
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  const radius = size / 2;
+
+  function drawWheel(){
+    ctx.clearRect(0,0,size,size);
+    for(let i=0;i<N;i++){
+      const startAngle = (i * sliceAngle - 90) * Math.PI/180; // -90 so slice 0 starts at top
+      const endAngle = ((i+1) * sliceAngle - 90) * Math.PI/180;
+      ctx.beginPath();
+      ctx.moveTo(radius, radius);
+      ctx.arc(radius, radius, radius, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = wheelSegments[i].color;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // text + emoji
+      ctx.save();
+      const midAngle = startAngle + (endAngle-startAngle)/2;
+      ctx.translate(radius, radius);
+      ctx.rotate(midAngle);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 40px Segoe UI Emoji, Arial";
+      ctx.fillText(wheelSegments[i].emoji, radius - 90, 12);
+      ctx.font = "bold 17px Segoe UI, Arial";
+      ctx.fillText(wheelSegments[i].label, radius - 20, 12);
+      ctx.restore();
+    }
+  }
+  drawWheel();
+
+  const spinBtn = document.getElementById('spinBtn');
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+  const resultEmoji = document.getElementById('resultEmoji');
+  const resultTitle = document.getElementById('resultTitle');
+  const resultText = document.getElementById('resultText');
+  const closeModal = document.getElementById('closeModal');
+  const spinsLeftEl = document.getElementById('spinsLeft');
+  const subtitleEl = document.getElementById('subtitle');
+
+  const regOverlay = document.getElementById('regOverlay');
+  const regForm = document.getElementById('regForm');
+  const playerNameInput = document.getElementById('playerName');
+  const playerPhoneInput = document.getElementById('playerPhone');
+  const regError = document.getElementById('regError');
+  const exportLink = document.getElementById('exportLink');
+
+  let currentRotation = 0;
+  let spinning = false;
+  let spinsUsed = 0;
+
+  // Current player + full session log (for host export)
+  let currentPlayer = { name: "", phone: "" };
+  const entries = [];
+
+  function updateSpinsLabel(){
+    spinsLeftEl.textContent = spinsUsed === 0
+      ? "Good luck on your first spin!"
+      : `Spins so far: ${spinsUsed}`;
+  }
+  updateSpinsLabel();
+
+  // Basic phone validation: at least 7 digits, allows spaces/dashes/plus/parentheses
+  function isValidPhone(value){
+    const digits = value.replace(/[^0-9]/g, "");
+    return digits.length >= 7 && /^[0-9+\-\s()]+$/.test(value);
+  }
+
+  function openRegistration(){
+    spinBtn.disabled = true;
+    playerNameInput.value = "";
+    playerPhoneInput.value = "";
+    regError.textContent = "";
+    regOverlay.classList.add('show');
+    setTimeout(()=> playerNameInput.focus(), 300);
+  }
+
+  regForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    const name = playerNameInput.value.trim();
+    const phone = playerPhoneInput.value.trim();
+
+    if(!name){
+      regError.textContent = "Please enter your name.";
+      playerNameInput.focus();
+      return;
+    }
+    if(!phone || !isValidPhone(phone)){
+      regError.textContent = "Please enter a valid phone number.";
+      playerPhoneInput.focus();
+      return;
+    }
+
+    currentPlayer = { name, phone };
+    regError.textContent = "";
+    regOverlay.classList.remove('show');
+    spinBtn.disabled = false;
+    subtitleEl.textContent = `Good luck, ${name}! Give the wheel a spin.`;
+  });
+
+  function downloadCSV(){
+    if(entries.length === 0){
+      alert("No entries yet.");
+      return;
+    }
+    const header = ["Name","Phone","Result","Won","Timestamp"];
+    const rows = entries.map(e => [e.name, e.phone, e.result, e.won ? "Yes" : "No", e.time]);
+    const csv = [header, ...rows]
+      .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "spin-and-win-entries.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  exportLink.addEventListener('click', downloadCSV);
+
+  // Weighted odds: make big prizes rarer, Try Again more common overall via weight table
+  // index matches wheelSegments order
+  const weights = [
+    5,   // MacBook
+    8,   // iPhone
+    12,  // Cash
+    2,   // Car
+    1,   // House
+    30   // Try Again
+  ];
+
+  function pickWeightedIndex(){
+    const total = weights.reduce((a,b)=>a+b,0);
+    let r = Math.random() * total;
+    for(let i=0;i<weights.length;i++){
+      if(r < weights[i]) return i;
+      r -= weights[i];
+    }
+    return weights.length - 1;
+  }
+
+  function spin(){
+    if(spinning) return;
+    spinning = true;
+    spinBtn.disabled = true;
+
+    const targetIndex = pickWeightedIndex();
+
+    // Angle range (in wheel-local, unrotated coordinates) that this segment occupies,
+    // measured from top (0deg) going clockwise, matching drawWheel's -90 offset convention.
+    const segStart = targetIndex * sliceAngle;
+    const segEnd = segStart + sliceAngle;
+    // pick a random landing point inside the segment (with small padding so pointer doesn't land on the line)
+    const pad = sliceAngle * 0.15;
+    const landInSegment = segStart + pad + Math.random() * (sliceAngle - pad*2);
+
+    // Pointer is fixed at top (0deg). To bring "landInSegment" to the top,
+    // we need to rotate the wheel by -landInSegment (mod 360), plus extra full spins.
+    const extraSpins = 6 + Math.floor(Math.random()*3); // 6-8 full rotations
+    const normalizedCurrent = ((currentRotation % 360) + 360) % 360;
+    // total rotation needed so that final orientation places landInSegment at top:
+    // finalOrientation ≡ -landInSegment (mod 360)
+    let delta = ( -landInSegment - normalizedCurrent + 360*10 ) % 360;
+    const totalRotation = currentRotation + extraSpins*360 + delta;
+
+    currentRotation = totalRotation;
+    canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+    setTimeout(()=>{
+      spinning = false;
+      spinBtn.disabled = false;
+      spinsUsed++;
+      updateSpinsLabel();
+      showResult(wheelSegments[targetIndex]);
+    }, 5600);
+  }
+
+  function showResult(segment){
+    const name = currentPlayer.name || "there";
+    resultEmoji.textContent = segment.emoji;
+    resultTitle.textContent = segment.win ? `${segment.title} ${name}!` : segment.title;
+    resultText.textContent = segment.win
+      ? `${name}, ${segment.text}`
+      : `${name}, ${segment.text}`;
+    modal.classList.toggle('lose', !segment.win);
+    overlay.classList.add('show');
+    if(segment.win){
+      launchConfetti();
+    }
+
+    entries.push({
+      name: currentPlayer.name,
+      phone: currentPlayer.phone,
+      result: segment.label,
+      won: segment.win,
+      time: new Date().toISOString()
+    });
+  }
+
+  closeModal.addEventListener('click', ()=>{
+    overlay.classList.remove('show');
+    // Reset for the next participant
+    currentPlayer = { name: "", phone: "" };
+    subtitleEl.textContent = "Give the wheel a spin — good luck!";
+    openRegistration();
+  });
+
+  spinBtn.addEventListener('click', spin);
+
+  // Show the registration form before the very first spin
+  openRegistration();
+
+  // ---- Confetti ----
+  const confettiCanvas = document.getElementById('confetti');
+  const cctx = confettiCanvas.getContext('2d');
+  function resizeConfetti(){
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+  }
+  resizeConfetti();
+  window.addEventListener('resize', resizeConfetti);
+
+  let particles = [];
+  const confettiColors = ["#ffd166","#ff6b6b","#4ecdc4","#a78bfa","#06d6a0","#ffffff"];
+
+  function launchConfetti(){
+    const count = 150;
+    for(let i=0;i<count;i++){
+      particles.push({
+        x: confettiCanvas.width/2,
+        y: confettiCanvas.height*0.35,
+        vx: (Math.random()-0.5) * 14,
+        vy: (Math.random()-1.2) * 14,
+        size: 4 + Math.random()*6,
+        color: confettiColors[Math.floor(Math.random()*confettiColors.length)],
+        rotation: Math.random()*360,
+        vr: (Math.random()-0.5) * 20,
+        gravity: 0.35 + Math.random()*0.15,
+        life: 0,
+        maxLife: 90 + Math.random()*40
+      });
+    }
+    if(!confettiRunning){
+      confettiRunning = true;
+      requestAnimationFrame(animateConfetti);
+    }
+  }
+
+  let confettiRunning = false;
+  function animateConfetti(){
+    cctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+    particles.forEach(p=>{
+      p.vy += p.gravity;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotation += p.vr;
+      p.life++;
+      cctx.save();
+      cctx.translate(p.x, p.y);
+      cctx.rotate(p.rotation * Math.PI/180);
+      cctx.fillStyle = p.color;
+      cctx.globalAlpha = Math.max(0, 1 - p.life/p.maxLife);
+      cctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+      cctx.restore();
+    });
+    particles = particles.filter(p => p.life < p.maxLife && p.y < confettiCanvas.height + 50);
+    if(particles.length > 0){
+      requestAnimationFrame(animateConfetti);
+    } else {
+      confettiRunning = false;
+      cctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
